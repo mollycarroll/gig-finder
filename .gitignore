@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Env files — real secrets, never commit
+.env
+.env.local
+backend/.env
+frontend/.env
+
+# Supabase local runtime
+.supabase/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Claude Code local overrides (personal, not shared)
+.claude/settings.local.json
+CLAUDE.local.md
