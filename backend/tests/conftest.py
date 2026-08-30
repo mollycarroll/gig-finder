@@ -1,14 +1,36 @@
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import settings
+import app.auth as auth_module
 from app.db import engine, get_db
 from app.main import app
+
+# A fixed EC keypair standing in for Supabase's real (rotating) JWT signing
+# keys, so tests can sign/verify tokens without a live JWKS endpoint.
+_TEST_PRIVATE_KEY = ec.generate_private_key(ec.SECP256R1())
+_TEST_PUBLIC_KEY = _TEST_PRIVATE_KEY.public_key()
+
+
+@dataclass
+class _FakeSigningKey:
+    key: object
+
+
+class _FakeJWKClient:
+    def get_signing_key_from_jwt(self, token: str) -> _FakeSigningKey:
+        return _FakeSigningKey(key=_TEST_PUBLIC_KEY)
+
+
+@pytest.fixture(autouse=True)
+def _patch_jwk_client(monkeypatch):
+    monkeypatch.setattr(auth_module, "_jwk_client", lambda: _FakeJWKClient())
 
 
 @pytest.fixture()
@@ -49,7 +71,7 @@ def make_test_jwt(user_id: uuid.UUID | None = None, *, expired: bool = False) ->
     now = datetime.now(timezone.utc)
     exp = now - timedelta(minutes=5) if expired else now + timedelta(hours=1)
     payload = {"sub": str(user_id), "aud": "authenticated", "role": "authenticated", "exp": exp}
-    return jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    return jwt.encode(payload, _TEST_PRIVATE_KEY, algorithm="ES256")
 
 
 @pytest.fixture()
