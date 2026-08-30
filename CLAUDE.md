@@ -84,6 +84,21 @@ deliberately deferred, not forgotten:
 - Run `pytest` and `npm test` before considering a feature done; both must
   pass in CI (`.github/workflows/ci.yml`)
 
+## Git workflow
+
+- After finishing a logical unit of work (one module from the implementation
+  plan, a bug fix, or a change that leaves tests passing), stop and ask
+  whether to commit now, rather than letting unrelated changes pile up
+  uncommitted.
+- After a commit leaves the tree in a good state, ask whether to push. Don't
+  push without asking even if the answer seems obvious — `git push` already
+  requires approval per `.claude/settings.json`, so this is about prompting
+  at the right moment, not bypassing that gate.
+- If several files have changed with no commit yet, raise it proactively
+  instead of waiting to be asked.
+- Before ending a session (the user signals they're stopping for now), check
+  whether there's uncommitted or unpushed work and ask about it once.
+
 ## Environment
 
 - Real secrets live in `backend/.env` and `frontend/.env` (gitignored) —
