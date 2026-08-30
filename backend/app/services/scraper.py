@@ -34,57 +34,95 @@ class ScrapeResult:
     booking_url: str | None = None
 
 
-class _LinkExtractor(HTMLParser):
-    """Collects (href, anchor_text) for every <a href="..."> in the page."""
+class _PageParser(HTMLParser):
+    """Collects (href, anchor_text) links and visible text, separately.
+
+    Excludes <script>/<style> contents from visible text — email/phone
+    extraction must never scan those (JS validation-message strings, JSON
+    blobs, and CDN asset URLs are full of things that look like emails and
+    phone numbers but aren't).
+    """
 
     def __init__(self) -> None:
         super().__init__()
         self.links: list[tuple[str, str]] = []
+        self.text_parts: list[str] = []
         self._current_href: str | None = None
-        self._current_text: list[str] = []
+        self._current_link_text: list[str] = []
+        self._skip_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in ("script", "style"):
+            self._skip_depth += 1
         if tag == "a":
             href = dict(attrs).get("href")
             if href:
                 self._current_href = href
-                self._current_text = []
-
-    def handle_data(self, data: str) -> None:
-        if self._current_href is not None:
-            self._current_text.append(data)
+                self._current_link_text = []
 
     def handle_endtag(self, tag: str) -> None:
+        if tag in ("script", "style") and self._skip_depth > 0:
+            self._skip_depth -= 1
         if tag == "a" and self._current_href is not None:
-            self.links.append((self._current_href, "".join(self._current_text)))
+            self.links.append((self._current_href, "".join(self._current_link_text)))
             self._current_href = None
-            self._current_text = []
+            self._current_link_text = []
+
+    def handle_data(self, data: str) -> None:
+        if self._skip_depth > 0:
+            return
+        if self._current_href is not None:
+            self._current_link_text.append(data)
+        self.text_parts.append(data)
 
 
-def _extract_links(html: str) -> list[tuple[str, str]]:
-    parser = _LinkExtractor()
+def _parse_page(html: str) -> _PageParser:
+    parser = _PageParser()
     parser.feed(html)
-    return parser.links
+    return parser
 
 
-def _find_link(html: str, base_url: str, pattern: re.Pattern) -> str | None:
-    for href, text in _extract_links(html):
+def _find_link(
+    links: list[tuple[str, str]], base_url: str, pattern: re.Pattern
+) -> str | None:
+    for href, text in links:
         if pattern.search(href) or pattern.search(text):
-            return urljoin(base_url, href)
+            absolute = urljoin(base_url, href)
+            # Skip mailto:/tel:/etc — a matched "contact" or "book" link is
+            # often a mailto: address, not a page to fetch.
+            if urlparse(absolute).scheme in ("http", "https"):
+                return absolute
     return None
 
 
 def _extract_contacts(
-    html: str, base_url: str
+    page: _PageParser, base_url: str
 ) -> tuple[str | None, str | None, dict[str, str]]:
-    email_match = _EMAIL_RE.search(html)
-    email = email_match.group(0) if email_match else None
+    # Join with a space, not "" — adjacent-but-separate DOM text nodes
+    # (e.g. a zip code in one <span> immediately followed by an email in
+    # the next) must not fuse into one token like "28806contact@...".
+    visible_text = " ".join(page.text_parts)
 
-    phone_match = _PHONE_RE.search(html)
+    email_match = _EMAIL_RE.search(visible_text)
+    email = email_match.group(0) if email_match else None
+    if email is None:
+        for href, _text in page.links:
+            if href.lower().startswith("mailto:"):
+                candidate = href[len("mailto:") :].split("?")[0]
+                if _EMAIL_RE.fullmatch(candidate):
+                    email = candidate
+                    break
+
+    phone_match = _PHONE_RE.search(visible_text)
     phone = phone_match.group(0).strip() if phone_match else None
+    if phone is None:
+        for href, _text in page.links:
+            if href.lower().startswith("tel:"):
+                phone = href[len("tel:") :]
+                break
 
     social_links: dict[str, str] = {}
-    for href, _text in _extract_links(html):
+    for href, _text in page.links:
         absolute = urljoin(base_url, href)
         host = urlparse(absolute).netloc.lower().removeprefix("www.")
         platform = _SOCIAL_DOMAINS.get(host)
@@ -139,23 +177,24 @@ async def scrape_venue(
         except httpx.HTTPError:
             return ScrapeResult(scrape_status=ScrapeStatus.error)
 
-        html = response.text
-        email, phone, social_links = _extract_contacts(html, website_url)
-        booking_url = _find_link(html, website_url, _BOOKING_LINK_RE)
+        page = _parse_page(response.text)
+        email, phone, social_links = _extract_contacts(page, website_url)
+        booking_url = _find_link(page.links, website_url, _BOOKING_LINK_RE)
 
-        contact_page_url = _find_link(html, website_url, _CONTACT_LINK_RE)
+        contact_page_url = _find_link(page.links, website_url, _CONTACT_LINK_RE)
         if contact_page_url and contact_page_url != website_url:
             try:
                 contact_response = await client.get(contact_page_url)
                 contact_response.raise_for_status()
+                contact_page = _parse_page(contact_response.text)
                 c_email, c_phone, c_social = _extract_contacts(
-                    contact_response.text, contact_page_url
+                    contact_page, contact_page_url
                 )
                 email = email or c_email
                 phone = phone or c_phone
                 social_links = {**c_social, **social_links}
                 booking_url = booking_url or _find_link(
-                    contact_response.text, contact_page_url, _BOOKING_LINK_RE
+                    contact_page.links, contact_page_url, _BOOKING_LINK_RE
                 )
             except httpx.HTTPError:
                 pass  # contact-page fetch failing doesn't fail the whole scrape

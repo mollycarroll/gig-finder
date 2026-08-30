@@ -5,6 +5,7 @@ import httpx
 from app.config import settings
 
 _TIMEOUT = httpx.Timeout(25.0)
+_USER_AGENT = "gig-finder/1.0 (local dev; https://github.com/)"
 
 # OSM tags considered live-music-relevant. Adjustable without a migration —
 # this only shapes the Overpass query, not stored data.
@@ -77,6 +78,7 @@ async def find_venues(
         response = await client.post(
             settings.OVERPASS_API_URL,
             data={"data": _build_query(lat, lon, radius_m)},
+            headers={"User-Agent": _USER_AGENT},
         )
         response.raise_for_status()
         data = response.json()
