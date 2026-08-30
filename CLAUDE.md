@@ -21,6 +21,8 @@ every session — architecture facts and conventions, not the full spec.
 
 ## Commands
 
+- Backend commands (`uvicorn`, `alembic`, `pytest`, `pip`) require the venv
+  active: `source backend/.venv/bin/activate`
 - Backend dev server: `uvicorn app.main:app --reload` (port 8000)
 - Frontend dev server: `npm run dev` (port 5173, from `frontend/`)
 - Local Postgres: `supabase start` / `supabase stop`
@@ -41,6 +43,9 @@ every session — architecture facts and conventions, not the full spec.
   (`geocode.py`, `overpass.py`, `scraper.py`, `cache.py`)
 - `backend/alembic/` — migrations
 - `backend/tests/` — pytest, fixture HTML under `tests/fixtures/`
+- `supabase/config.toml` — local Supabase CLI project config (from
+  `supabase init`); governs the `supabase start`/`stop` local Postgres +
+  Auth stack
 - `frontend/src/pages/` — route-level components
 - `frontend/src/components/` — reusable UI
 - `frontend/src/api/client.ts` — fetch wrapper, attaches Supabase session JWT
