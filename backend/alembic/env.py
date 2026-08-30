@@ -8,9 +8,7 @@ from alembic import context
 from app.config import settings
 from app.db import Base
 
-# Import models here once they exist, to register mapped classes on
-# Base.metadata for autogenerate:
-# import app.models  # noqa: F401
+import app.models  # noqa: F401 — registers all mapped classes on Base.metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
