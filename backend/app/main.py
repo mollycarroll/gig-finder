@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers import saved, search
+
 app = FastAPI(title="Gig Finder API")
 
 app.add_middleware(
@@ -17,7 +19,5 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# Routers are registered here as they're implemented:
-# from app.routers import search, saved
-# app.include_router(search.router)
-# app.include_router(saved.router)
+app.include_router(search.router)
+app.include_router(saved.router)
