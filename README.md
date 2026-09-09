@@ -20,9 +20,31 @@ cases, and [CLAUDE.md](./CLAUDE.md) for architecture conventions.
 - **External APIs**: Nominatim (geocoding), Overpass API (venue discovery)
   — both free, no key required
 
+## Screenshots
+
+### Search Page
+Browse and search for live-music venues by location (city, neighborhood, or postal code).
+
+![Search page interface](./docs/screenshots/search-page.png)
+
+### Search Results
+View detailed venue information including scraped contact details—email, phone, booking pages, and social media links—making it easy to reach out for booking inquiries.
+
+![Search results with venue details](./docs/screenshots/search-results.png)
+
+### Saved Venues
+Access your personal shortlist of venues you've found. Track outreach status (Contacted, Booked, etc.) for each saved venue and manage your booking pipeline.
+
+![Saved venues with status tracking](./docs/screenshots/saved-venues.png)
+
+### Authentication
+Secure login and signup via Supabase Auth. New users must confirm their email (automatic in local dev).
+
+![Login and signup screens](./docs/screenshots/auth-page.png)
+
 ## Prerequisites
 
-- Python 3.14+
+- Python 3.11+
 - Node 20+ (this project was built against Node 26)
 - [Supabase CLI](https://supabase.com/docs/guides/cli) — for local
   Postgres + Auth
