@@ -107,4 +107,23 @@ describe('VenueCard', () => {
 
     expect(onSave).not.toHaveBeenCalled()
   })
+
+  it('does not render a status select when status/onStatusChange are omitted', () => {
+    renderCard()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('renders a status select when status and onStatusChange are provided', () => {
+    renderCard({ status: 'contacted', onStatusChange: vi.fn() })
+    expect(screen.getByRole('combobox')).toHaveValue('contacted')
+  })
+
+  it('calls onStatusChange with the new value when the select changes', () => {
+    const onStatusChange = vi.fn()
+    renderCard({ status: 'not_contacted', onStatusChange })
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'booked' } })
+
+    expect(onStatusChange).toHaveBeenCalledWith('booked')
+  })
 })

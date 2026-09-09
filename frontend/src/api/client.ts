@@ -9,6 +9,8 @@ export interface GeocodeResult {
 
 export type ScrapeStatus = 'success' | 'no_website' | 'timeout' | 'disallowed_by_robots' | 'error'
 
+export type SavedVenueStatus = 'not_contacted' | 'contacted' | 'replied' | 'booked' | 'declined'
+
 export interface VenueContact {
   email: string | null
   phone: string | null
@@ -37,6 +39,7 @@ export interface SearchResponse {
 export interface SavedVenue {
   id: number
   venue_id: number
+  status: SavedVenueStatus
   created_at: string
   venue: Venue
 }
@@ -99,4 +102,14 @@ export function saveVenue(venueId: number): Promise<SavedVenue> {
 
 export function unsaveVenue(venueId: number): Promise<void> {
   return apiFetch(`/api/saved-venues/${venueId}`, { method: 'DELETE' })
+}
+
+export function updateSavedVenueStatus(
+  venueId: number,
+  status: SavedVenueStatus,
+): Promise<SavedVenue> {
+  return apiFetch(`/api/saved-venues/${venueId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
 }

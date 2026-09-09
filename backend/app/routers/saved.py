@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.auth import get_current_user_id
 from app.db import get_db
 from app.models import SavedVenue, Venue
-from app.schemas import SavedVenueCreate, SavedVenueOut
+from app.schemas import SavedVenueCreate, SavedVenueOut, SavedVenueStatusUpdate
 
 router = APIRouter(prefix="/api/saved-venues", tags=["saved-venues"])
 
@@ -49,6 +49,27 @@ def save_venue(
 
     saved = SavedVenue(user_id=user_id, venue_id=body.venue_id)
     db.add(saved)
+    db.commit()
+    db.refresh(saved)
+    return saved
+
+
+@router.patch("/{venue_id}", response_model=SavedVenueOut)
+def update_saved_venue_status(
+    venue_id: int,
+    body: SavedVenueStatusUpdate,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> SavedVenue:
+    saved = db.execute(
+        select(SavedVenue)
+        .options(joinedload(SavedVenue.venue).joinedload(Venue.contact))
+        .where(SavedVenue.user_id == user_id, SavedVenue.venue_id == venue_id)
+    ).scalar_one_or_none()
+    if saved is None:
+        raise HTTPException(status_code=404, detail="Saved venue not found")
+
+    saved.status = body.status
     db.commit()
     db.refresh(saved)
     return saved

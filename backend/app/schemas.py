@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import ScrapeStatus
+from app.models import OutreachStatus, ScrapeStatus
 
 
 class GeocodeResult(BaseModel):
@@ -53,10 +53,15 @@ class SavedVenueCreate(BaseModel):
     venue_id: int
 
 
+class SavedVenueStatusUpdate(BaseModel):
+    status: OutreachStatus
+
+
 class SavedVenueOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     venue_id: int
+    status: OutreachStatus
     created_at: datetime
     venue: VenueOut

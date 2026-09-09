@@ -46,6 +46,13 @@ def test_delete_requires_auth(client: TestClient):
     assert client.delete("/api/saved-venues/1").status_code == 401
 
 
+def test_patch_requires_auth(client: TestClient):
+    assert (
+        client.patch("/api/saved-venues/1", json={"status": "contacted"}).status_code
+        == 401
+    )
+
+
 def test_invalid_token_is_401(client: TestClient):
     headers = {"Authorization": "Bearer not-a-real-token"}
     assert client.get("/api/saved-venues", headers=headers).status_code == 401
@@ -65,11 +72,13 @@ def test_save_then_list(client: TestClient, db_session: Session, auth_headers: d
     assert post_resp.status_code == 201
     assert post_resp.json()["venue_id"] == venue.id
     assert post_resp.json()["venue"]["name"] == "The Blue Note"
+    assert post_resp.json()["status"] == "not_contacted"
 
     list_resp = client.get("/api/saved-venues", headers=auth_headers)
     assert list_resp.status_code == 200
     assert len(list_resp.json()) == 1
     assert list_resp.json()[0]["venue_id"] == venue.id
+    assert list_resp.json()[0]["status"] == "not_contacted"
 
 
 def test_save_is_idempotent(client: TestClient, db_session: Session, auth_headers: dict):
@@ -116,3 +125,65 @@ def test_saved_venues_are_scoped_to_user(client: TestClient, db_session: Session
 
     assert client.get("/api/saved-venues", headers=user_a_headers).json() != []
     assert client.get("/api/saved-venues", headers=user_b_headers).json() == []
+
+
+def test_patch_updates_status(client: TestClient, db_session: Session, auth_headers: dict):
+    venue = _make_venue(db_session)
+    client.post("/api/saved-venues", json={"venue_id": venue.id}, headers=auth_headers)
+
+    patch_resp = client.patch(
+        f"/api/saved-venues/{venue.id}", json={"status": "contacted"}, headers=auth_headers
+    )
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["status"] == "contacted"
+
+    list_resp = client.get("/api/saved-venues", headers=auth_headers)
+    assert list_resp.json()[0]["status"] == "contacted"
+
+
+def test_patch_can_jump_directly_to_any_status(
+    client: TestClient, db_session: Session, auth_headers: dict
+):
+    venue = _make_venue(db_session)
+    client.post("/api/saved-venues", json={"venue_id": venue.id}, headers=auth_headers)
+
+    patch_resp = client.patch(
+        f"/api/saved-venues/{venue.id}", json={"status": "booked"}, headers=auth_headers
+    )
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["status"] == "booked"
+
+
+def test_patch_nonexistent_saved_venue_is_404(auth_headers: dict, client: TestClient):
+    response = client.patch(
+        "/api/saved-venues/999999", json={"status": "contacted"}, headers=auth_headers
+    )
+    assert response.status_code == 404
+
+
+def test_patch_invalid_status_is_422(client: TestClient, db_session: Session, auth_headers: dict):
+    venue = _make_venue(db_session)
+    client.post("/api/saved-venues", json={"venue_id": venue.id}, headers=auth_headers)
+
+    response = client.patch(
+        f"/api/saved-venues/{venue.id}",
+        json={"status": "not_a_real_status"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+def test_patch_scoped_to_user(client: TestClient, db_session: Session):
+    venue = _make_venue(db_session)
+    user_a_headers = {"Authorization": f"Bearer {make_test_jwt(uuid.uuid4())}"}
+    user_b_headers = {"Authorization": f"Bearer {make_test_jwt(uuid.uuid4())}"}
+
+    client.post("/api/saved-venues", json={"venue_id": venue.id}, headers=user_a_headers)
+
+    response = client.patch(
+        f"/api/saved-venues/{venue.id}", json={"status": "booked"}, headers=user_b_headers
+    )
+    assert response.status_code == 404
+
+    list_resp = client.get("/api/saved-venues", headers=user_a_headers)
+    assert list_resp.json()[0]["status"] == "not_contacted"

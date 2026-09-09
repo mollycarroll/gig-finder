@@ -28,6 +28,15 @@ export default function SavedVenuesPage() {
     setSaved((prev) => prev?.filter((s) => s.venue_id !== venueId) ?? null)
   }
 
+  async function handleStatusChange(venueId: number, status: api.SavedVenueStatus) {
+    try {
+      const updated = await api.updateSavedVenueStatus(venueId, status)
+      setSaved((prev) => prev?.map((s) => (s.venue_id === venueId ? updated : s)) ?? null)
+    } catch {
+      setError('Failed to update status.')
+    }
+  }
+
   if (authLoading || (saved === null && !error)) {
     return <p className="p-4">Loading...</p>
   }
@@ -44,6 +53,8 @@ export default function SavedVenuesPage() {
           isSaved
           onSave={() => {}}
           onRemove={() => handleRemove(s.venue_id)}
+          status={s.status}
+          onStatusChange={(status) => handleStatusChange(s.venue_id, status)}
         />
       ))}
     </div>

@@ -37,6 +37,14 @@ class ScrapeStatus(str, enum.Enum):
     error = "error"
 
 
+class OutreachStatus(str, enum.Enum):
+    not_contacted = "not_contacted"
+    contacted = "contacted"
+    replied = "replied"
+    booked = "booked"
+    declined = "declined"
+
+
 class Area(Base):
     __tablename__ = "area"
     __table_args__ = (
@@ -156,6 +164,11 @@ class SavedVenue(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     venue_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("venue.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[OutreachStatus] = mapped_column(
+        SQLEnum(OutreachStatus, name="outreach_status"),
+        nullable=False,
+        server_default=OutreachStatus.not_contacted.value,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

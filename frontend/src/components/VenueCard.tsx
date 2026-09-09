@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import type { Venue } from '../api/client'
+import type { SavedVenueStatus, Venue } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
 interface VenueCardProps {
@@ -7,9 +7,18 @@ interface VenueCardProps {
   isSaved: boolean
   onSave: () => void
   onRemove: () => void
+  status?: SavedVenueStatus
+  onStatusChange?: (status: SavedVenueStatus) => void
 }
 
-export default function VenueCard({ venue, isSaved, onSave, onRemove }: VenueCardProps) {
+export default function VenueCard({
+  venue,
+  isSaved,
+  onSave,
+  onRemove,
+  status,
+  onStatusChange,
+}: VenueCardProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const contact = venue.contact
@@ -81,6 +90,20 @@ export default function VenueCard({ venue, isSaved, onSave, onRemove }: VenueCar
       >
         {isSaved ? 'Remove' : 'Save'}
       </button>
+
+      {status !== undefined && onStatusChange && (
+        <select
+          value={status}
+          onChange={(e) => onStatusChange(e.target.value as SavedVenueStatus)}
+          className="mt-2 self-start px-3 py-1 rounded border border-gray-200 text-sm"
+        >
+          <option value="not_contacted">Not contacted</option>
+          <option value="contacted">Contacted</option>
+          <option value="replied">Replied</option>
+          <option value="booked">Booked</option>
+          <option value="declined">Declined</option>
+        </select>
+      )}
     </div>
   )
 }

@@ -2,7 +2,9 @@
 
 Web app for musicians to search live-music venues in an area and get scraped
 contact info (email, phone, socials, booking page) for booking outreach.
-Logged-in users maintain a saved venue shortlist.
+Logged-in users maintain a saved venue shortlist, each carrying an outreach
+status (not_contacted/contacted/replied/booked/declined, editable on the
+Saved Venues page) — see `OutreachStatus` in `app/models.py`.
 
 Full planning spec: see `SPEC.md`. This file holds only what should load into
 every session — architecture facts and conventions, not the full spec.
@@ -71,7 +73,6 @@ deliberately deferred, not forgotten:
 
 - Social login / OAuth (email/password only)
 - Users submitting or editing venue data
-- Outreach/CRM tracking (contacted/replied/booked status)
 - Saved searches or alerts
 - Manual "force refresh" (only automatic 30-day cache expiry)
 - Admin role or panel
