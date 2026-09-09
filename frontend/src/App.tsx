@@ -22,7 +22,7 @@ function Nav() {
           </span>
         </div>
         <nav className="flex items-center gap-5 mt-3 font-display text-sm font-semibold uppercase tracking-wide">
-          <Link to="/" className="text-white border-b-2 border-white/0 [&.active]:border-white pb-1">
+          <Link to="/" className="text-white/80 hover:text-white pb-1">
             Search
           </Link>
           <Link to="/saved" className="text-white/80 hover:text-white pb-1">
