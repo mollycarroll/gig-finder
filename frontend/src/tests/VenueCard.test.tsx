@@ -74,7 +74,7 @@ describe('VenueCard', () => {
     })
 
     expect(screen.getByText('info@thebluenote.example')).toBeInTheDocument()
-    expect(screen.getByText((_, node) => node?.textContent === 'Phone: (555) 867-5309')).toBeInTheDocument()
+    expect(screen.getByText('(555) 867-5309')).toBeInTheDocument()
     expect(screen.getByText('Booking page')).toBeInTheDocument()
     expect(screen.getByText('instagram')).toBeInTheDocument()
     expect(screen.queryByText(/no contact info found/i)).not.toBeInTheDocument()
@@ -93,7 +93,7 @@ describe('VenueCard', () => {
     const onRemove = vi.fn()
     renderCard({ isSaved: true, onRemove })
 
-    fireEvent.click(screen.getByRole('button', { name: /remove/i }))
+    fireEvent.click(screen.getByRole('button', { name: /saved/i }))
 
     expect(onRemove).toHaveBeenCalledTimes(1)
   })

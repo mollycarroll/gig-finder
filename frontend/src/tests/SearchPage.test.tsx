@@ -28,7 +28,7 @@ function search(query: string) {
   fireEvent.change(screen.getByPlaceholderText(/city, neighborhood/i), {
     target: { value: query },
   })
-  fireEvent.click(screen.getByRole('button', { name: /search/i }))
+  fireEvent.click(screen.getByRole('button', { name: /go/i }))
 }
 
 describe('SearchPage', () => {
