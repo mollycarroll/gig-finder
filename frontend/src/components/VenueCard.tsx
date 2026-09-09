@@ -11,6 +11,14 @@ interface VenueCardProps {
   onStatusChange?: (status: SavedVenueStatus) => void
 }
 
+const STATUS_LABELS: Record<SavedVenueStatus, string> = {
+  not_contacted: 'Not contacted',
+  contacted: 'Contacted',
+  replied: 'Replied',
+  booked: 'Booked',
+  declined: 'Declined',
+}
+
 export default function VenueCard({
   venue,
   isSaved,
@@ -43,25 +51,31 @@ export default function VenueCard({
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 flex flex-col gap-2">
-      <h3 className="text-lg font-semibold">{venue.name}</h3>
-      <p className="text-sm text-gray-600">{venue.address}</p>
+    <div className="relative bg-cream border border-line rounded-xl p-4 flex flex-col gap-2">
+      <h3 className="font-display font-bold text-lg text-ink">{venue.name}</h3>
+      <p className="text-sm text-muted">{venue.address}</p>
 
       {hasContactInfo ? (
-        <ul className="text-sm space-y-1">
+        <ul className="text-sm space-y-1.5 mt-1">
           {contact?.email && (
-            <li>
-              Email:{' '}
-              <a className="underline" href={`mailto:${contact.email}`}>
+            <li className="flex items-center gap-2 text-ink">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal shrink-0" />
+              <a className="hover:text-teal-dark underline" href={`mailto:${contact.email}`}>
                 {contact.email}
               </a>
             </li>
           )}
-          {contact?.phone && <li>Phone: {contact.phone}</li>}
+          {contact?.phone && (
+            <li className="flex items-center gap-2 text-ink">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal shrink-0" />
+              {contact.phone}
+            </li>
+          )}
           {contact?.booking_url && (
-            <li>
+            <li className="flex items-center gap-2 text-ink">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal shrink-0" />
               <a
-                className="underline"
+                className="underline hover:text-teal-dark"
                 href={contact.booking_url}
                 target="_blank"
                 rel="noreferrer"
@@ -72,37 +86,51 @@ export default function VenueCard({
           )}
           {contact &&
             Object.entries(contact.social_links ?? {}).map(([platform, url]) => (
-              <li key={platform}>
-                <a className="underline" href={url} target="_blank" rel="noreferrer">
+              <li key={platform} className="flex items-center gap-2 text-ink">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal shrink-0" />
+                <a className="underline hover:text-teal-dark capitalize" href={url} target="_blank" rel="noreferrer">
                   {platform}
                 </a>
               </li>
             ))}
         </ul>
       ) : (
-        <p className="text-sm text-gray-400 italic">No contact info found</p>
+        <p className="text-sm text-muted/80 italic mt-1">No contact info found</p>
       )}
 
-      <button
-        type="button"
-        onClick={handleToggleSave}
-        className="mt-2 self-start px-3 py-1 rounded bg-purple-600 text-white text-sm"
-      >
-        {isSaved ? 'Remove' : 'Save'}
-      </button>
-
-      {status !== undefined && onStatusChange && (
-        <select
-          value={status}
-          onChange={(e) => onStatusChange(e.target.value as SavedVenueStatus)}
-          className="mt-2 self-start px-3 py-1 rounded border border-gray-200 text-sm"
+      {status !== undefined && onStatusChange ? (
+        <div className="flex items-center justify-between mt-2 pt-3 border-t border-dashed border-line">
+          <select
+            value={status}
+            onChange={(e) => onStatusChange(e.target.value as SavedVenueStatus)}
+            className="bg-cream border border-teal text-teal-dark rounded-lg px-2.5 py-1.5 font-display font-semibold text-xs uppercase tracking-wide"
+          >
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="font-display font-semibold text-xs uppercase tracking-wide text-[#c26b5a] hover:text-[#a5533f]"
+          >
+            Remove
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleToggleSave}
+          className={
+            isSaved
+              ? 'absolute right-3 bottom-3 rounded-full border border-teal text-teal-dark px-3.5 py-1.5 font-display font-semibold text-xs uppercase tracking-wide'
+              : 'absolute right-3 bottom-3 rounded-full bg-teal text-white px-3.5 py-1.5 font-display font-semibold text-xs uppercase tracking-wide'
+          }
         >
-          <option value="not_contacted">Not contacted</option>
-          <option value="contacted">Contacted</option>
-          <option value="replied">Replied</option>
-          <option value="booked">Booked</option>
-          <option value="declined">Declined</option>
-        </select>
+          {isSaved ? 'Saved' : 'Save'}
+        </button>
       )}
     </div>
   )

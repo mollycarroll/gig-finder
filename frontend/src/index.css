@@ -1,1 +1,45 @@
+@import url("https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
+
+@theme {
+  --font-sans: Helvetica, Arial, sans-serif;
+  --font-display: "Oswald", Helvetica, Arial, sans-serif;
+
+  --color-cream: #f7f3ea;
+  --color-cream-deep: #eae6dd;
+  --color-ink: #1c1917;
+  --color-teal: #0ea5a5;
+  --color-teal-dark: #0b8484;
+  --color-line: #e3ddd0;
+  --color-muted: #8a8378;
+}
+
+body {
+  background-color: var(--color-cream-deep);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Ticket-stub perforation divider between list cards */
+.ticket-divider {
+  border-top: 1px dashed var(--color-line);
+  position: relative;
+  height: 1px;
+  margin: 0 -2px;
+}
+.ticket-divider::before,
+.ticket-divider::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-cream-deep);
+}
+.ticket-divider::before {
+  left: -18px;
+}
+.ticket-divider::after {
+  right: -18px;
+}

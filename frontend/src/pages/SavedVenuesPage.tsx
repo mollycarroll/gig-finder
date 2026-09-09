@@ -38,14 +38,16 @@ export default function SavedVenuesPage() {
   }
 
   if (authLoading || (saved === null && !error)) {
-    return <p className="p-4">Loading...</p>
+    return <p className="p-4 text-sm text-muted">Loading...</p>
   }
 
   return (
     <div className="p-4 max-w-2xl mx-auto flex flex-col gap-4">
-      <h1 className="text-2xl font-semibold">Saved venues</h1>
-      {error && <p className="text-red-600 text-sm">{error}</p>}
-      {saved?.length === 0 && <p className="text-sm text-gray-500">No saved venues yet.</p>}
+      <h1 className="font-display font-bold text-2xl uppercase text-ink">
+        Saved {saved && saved.length > 0 ? `(${saved.length})` : ''}
+      </h1>
+      {error && <p className="text-sm text-[#c26b5a]">{error}</p>}
+      {saved?.length === 0 && <p className="text-sm text-muted">No saved venues yet.</p>}
       {saved?.map((s) => (
         <VenueCard
           key={s.venue_id}

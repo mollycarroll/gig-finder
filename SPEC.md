@@ -37,7 +37,6 @@ concurrent server-side scraping with timeouts.
 ## Out of scope for v1
 - Social login / OAuth providers (email/password only)
 - Venues or users submitting/editing venue data
-- Outreach/CRM tracking (contacted, replied, booked, declined status)
 - Saved searches or alerts for new venues in an area
 - Manual "force refresh" of cached area data (only automatic 30-day expiry)
 - Admin role or admin panel
@@ -45,6 +44,19 @@ concurrent server-side scraping with timeouts.
 - Real-time/streaming search progress (websockets/SSE)
 - Deep multi-page crawling per venue site (homepage + one contact page only)
 - Docker Compose–based local dev environment
+
+## In scope for v2
+
+Deferred from v1 as "Outreach/CRM tracking" — now planned:
+
+- **Saved venue outreach status**: each `SavedVenue` gets a `status` field
+  (`not_contacted` default, `contacted`, `replied`, `booked`, `declined`)
+  that the user sets directly from the Saved Venues page — a free-form
+  label, not an enforced state machine. New `PATCH
+  /api/saved-venues/{venue_id}` endpoint (body `{status}`, auth required,
+  404 if the current user has no saved-venue row for that `venue_id`). See
+  the **Data model**, **API design**, and **Modules/files** sections below
+  for where this plugs into the v1 design.
 
 ## Data model (Postgres, via SQLAlchemy models in `backend/app/models.py`)
 
@@ -61,8 +73,10 @@ concurrent server-side scraping with timeouts.
   booking_url (nullable), scrape_status (enum: success, no_website, timeout,
   disallowed_by_robots, error), scraped_at`.
 - **SavedVenue** — a musician's shortlist entry.
-  `id, user_id (Supabase auth user id, uuid), venue_id (FK), created_at`.
-  Unique constraint on `(user_id, venue_id)`.
+  `id, user_id (Supabase auth user id, uuid), venue_id (FK), status (enum:
+  not_contacted, contacted, replied, booked, declined; defaults to
+  not_contacted — v2), created_at`. Unique constraint on
+  `(user_id, venue_id)`.
 
 User accounts themselves live in Supabase Auth (`auth.users`); the app schema
 only stores `user_id` as a foreign key, never duplicates auth data.
@@ -79,6 +93,8 @@ only stores `user_id` as a foreign key, never duplicates auth data.
   `scrape_status`).
 - `GET /api/saved-venues` (auth required) — the current user's shortlist.
 - `POST /api/saved-venues` — body `{venue_id}` (auth required, idempotent).
+- `PATCH /api/saved-venues/{venue_id}` — body `{status}` (auth required,
+  v2); 404 if the current user has no saved-venue row for that `venue_id`.
 - `DELETE /api/saved-venues/{venue_id}` (auth required).
 
 Auth: `backend/app/auth.py` provides a FastAPI dependency that verifies the
@@ -106,7 +122,8 @@ Backend (`backend/app/`):
 - `schemas.py` — Pydantic request/response models
 - `auth.py` — Supabase JWT verification dependency
 - `routers/search.py` — `/api/geocode`, `/api/search`
-- `routers/saved.py` — `/api/saved-venues` (GET/POST/DELETE)
+- `routers/saved.py` — `/api/saved-venues` (GET/POST/DELETE, PATCH for
+  status — v2)
 - `services/geocode.py` — Nominatim client + disambiguation logic
 - `services/overpass.py` — Overpass query builder/client, OSM tag filtering
   for live-music-relevant venues (bars, pubs, nightclubs, music venues)
@@ -118,7 +135,7 @@ Backend (`backend/app/`):
 - `tests/` — `test_geocode.py`, `test_overpass.py`, `test_scraper.py` (fixture
   HTML: has-email, has-phone, no-contact-info, robots-disallowed),
   `test_search_route.py` (cache hit vs miss), `test_saved_venues.py`
-  (401 without token, CRUD with a test JWT), `conftest.py`
+  (401 without token, CRUD with a test JWT, status update — v2), `conftest.py`
 
 Frontend (`frontend/src/`):
 - `main.tsx`, `App.tsx` — routes: `/`, `/login`, `/signup`, `/saved`
@@ -129,10 +146,11 @@ Frontend (`frontend/src/`):
 - `pages/LoginPage.tsx`, `pages/SignupPage.tsx` — Supabase email/password forms
 - `pages/SavedVenuesPage.tsx` — shortlist view
 - `components/VenueCard.tsx` — venue result (name, address, contact info,
-  save/remove button; handles missing-contact-info state)
+  save/remove button; handles missing-contact-info state; optional status
+  dropdown, shown only when rendered from `SavedVenuesPage` — v2)
 - `components/AreaDisambiguationPicker.tsx`
 - `vite.config.ts` — dev proxy config
-- `tests/`: `VenueCard.test.tsx`, `SearchPage.test.tsx`
+- `tests/`: `VenueCard.test.tsx`, `SearchPage.test.tsx`, `SavedVenuesPage.test.tsx` (v2)
 
 CI:
 - `.github/workflows/ci.yml` — runs `pytest` and `npm test` (Vitest) on
