@@ -8,13 +8,7 @@ import SignupPage from './pages/SignupPage';
 function Nav() {
 	const { user, signOut } = useAuth();
 	return (
-		<header
-			className='bg-teal px-5 pt-4 pb-3'
-			style={{
-				clipPath:
-					'polygon(0 0,100% 0,100% 88%,96% 100%,92% 88%,88% 100%,84% 88%,80% 100%,76% 88%,72% 100%,68% 88%,64% 100%,60% 88%,56% 100%,52% 88%,48% 100%,44% 88%,40% 100%,36% 88%,32% 100%,28% 88%,24% 100%,20% 88%,16% 100%,12% 88%,8% 100%,4% 88%,0 100%)',
-			}}
-		>
+		<header className='bg-teal px-5 pt-4 pb-3'>
 			<div className='max-w-2xl mx-auto'>
 				<div className='flex items-baseline justify-between'>
 					<span className='font-display font-bold text-2xl tracking-wide text-white'>
@@ -22,10 +16,10 @@ function Nav() {
 					</span>
 				</div>
 				<nav className='flex items-center gap-5 mt-3 font-display text-sm font-semibold uppercase tracking-wide'>
-					<Link to='/' className='text-white/80 hover:text-white pb-1'>
+					<Link to='/' className='text-white/80 hover:text-white'>
 						Search
 					</Link>
-					<Link to='/saved' className='text-white/80 hover:text-white pb-1'>
+					<Link to='/saved' className='text-white/80 hover:text-white'>
 						Saved
 					</Link>
 					<div className='ml-auto flex gap-4'>
@@ -33,7 +27,7 @@ function Nav() {
 							<button
 								type='button'
 								onClick={signOut}
-								className='text-white/80 hover:text-white'
+								className='text-white/80 hover:text-white uppercase'
 							>
 								Log out
 							</button>
