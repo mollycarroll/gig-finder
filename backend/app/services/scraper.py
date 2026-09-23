@@ -136,8 +136,8 @@ async def _robots_allowed(client: httpx.AsyncClient, url: str) -> bool:
     robots_url = urljoin(url, "/robots.txt")
     try:
         response = await client.get(robots_url)
-    except httpx.HTTPError:
-        return True  # unreachable robots.txt => default allow
+    except (ValueError, httpx.InvalidURL, httpx.HTTPError):
+        return True  # unreachable/unbuildable robots.txt => default allow
 
     if response.status_code >= 400:
         return True  # no robots.txt => no restrictions
@@ -159,6 +159,16 @@ async def scrape_venue(
     if not website_url:
         return ScrapeResult(scrape_status=ScrapeStatus.no_website)
 
+    # OSM `website` tags are free text: "www.venue.com" (no scheme) is
+    # common, and outright garbage appears too. Normalize the former and
+    # reject the latter as a per-venue error — a malformed URL must never
+    # crash the whole search (httpx raises ValueError on unfetchable URLs).
+    if "://" not in website_url:
+        website_url = f"https://{website_url}"
+    parsed = urlparse(website_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return ScrapeResult(scrape_status=ScrapeStatus.error)
+
     owns_client = client is None
     if owns_client:
         client = httpx.AsyncClient(
@@ -174,7 +184,7 @@ async def scrape_venue(
             response.raise_for_status()
         except httpx.TimeoutException:
             return ScrapeResult(scrape_status=ScrapeStatus.timeout)
-        except httpx.HTTPError:
+        except (ValueError, httpx.InvalidURL, httpx.HTTPError):
             return ScrapeResult(scrape_status=ScrapeStatus.error)
 
         page = _parse_page(response.text)
@@ -196,7 +206,7 @@ async def scrape_venue(
                 booking_url = booking_url or _find_link(
                     contact_page.links, contact_page_url, _BOOKING_LINK_RE
                 )
-            except httpx.HTTPError:
+            except (ValueError, httpx.InvalidURL, httpx.HTTPError):
                 pass  # contact-page fetch failing doesn't fail the whole scrape
 
         return ScrapeResult(

@@ -165,3 +165,24 @@ async def test_contact_page_merge():
     assert result.scrape_status == ScrapeStatus.success
     assert result.email == "booking@wanderingnote.example"
     assert result.booking_url == "https://wanderingnote.example/tickets"
+
+
+@pytest.mark.asyncio
+async def test_schemeless_website_url_gets_https_prepended():
+    client = _client(_allow_robots_then(_read("has_email.html")))
+    result = await scrape_venue("thebluenote.example", client=client)
+    assert result.scrape_status == ScrapeStatus.success
+
+
+@pytest.mark.asyncio
+async def test_unfetchable_website_url_is_error_not_crash():
+    # A bare path (seen in real OSM data) used to raise ValueError deep in
+    # httpx and 500 the whole search.
+    result = await scrape_venue("/robots.txt-shaped-garbage")
+    assert result.scrape_status == ScrapeStatus.error
+
+
+@pytest.mark.asyncio
+async def test_non_http_scheme_is_error():
+    result = await scrape_venue("ftp://files.example/venue")
+    assert result.scrape_status == ScrapeStatus.error

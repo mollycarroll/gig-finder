@@ -80,8 +80,27 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export function geocode(query: string): Promise<GeocodeResult[]> {
-  return apiFetch(`/api/geocode?q=${encodeURIComponent(query)}`)
+// Queried straight from the browser rather than through the backend:
+// Nominatim rate-limits shared-hosting IPs (like the deployed backend's),
+// while each visitor's own IP stays well inside its usage policy.
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org'
+
+export async function geocode(query: string): Promise<GeocodeResult[]> {
+  const response = await fetch(
+    `${NOMINATIM_URL}/search?q=${encodeURIComponent(query)}&format=jsonv2`,
+    { headers: { Accept: 'application/json' } },
+  )
+  if (!response.ok) {
+    throw new ApiError(response.status, response.statusText)
+  }
+  const items: { place_id: number; display_name: string; lat: string; lon: string }[] =
+    await response.json()
+  return items.map((item) => ({
+    place_id: item.place_id,
+    display_name: item.display_name,
+    lat: parseFloat(item.lat),
+    lon: parseFloat(item.lon),
+  }))
 }
 
 export function search(body: {
