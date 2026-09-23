@@ -1,5 +1,10 @@
 import { supabase } from '../lib/supabaseClient'
 
+// In dev this is empty and Vite's proxy (vite.config.ts) forwards /api to
+// the local backend. In prod (GitHub Pages) there's no proxy, so requests
+// must go directly to the deployed backend's absolute URL.
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? ''
+
 export interface GeocodeResult {
   place_id: number
   display_name: string
@@ -62,7 +67,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(path, { ...init, headers })
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
