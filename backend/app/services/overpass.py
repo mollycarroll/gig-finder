@@ -1,4 +1,3 @@
-import asyncio
 from dataclasses import dataclass
 
 import httpx
@@ -7,7 +6,6 @@ from app.config import settings
 
 _TIMEOUT = httpx.Timeout(25.0)
 _USER_AGENT = "gig-finder/1.0 (local dev; https://github.com/)"
-_MAX_RETRIES = 3
 
 # OSM tags considered live-music-relevant. Adjustable without a migration —
 # this only shapes the Overpass query, not stored data.
@@ -77,18 +75,12 @@ async def find_venues(
         client = httpx.AsyncClient(timeout=_TIMEOUT)
 
     try:
-        for attempt in range(_MAX_RETRIES):
-            response = await client.post(
-                settings.OVERPASS_API_URL,
-                data={"data": _build_query(lat, lon, radius_m)},
-                headers={"User-Agent": _USER_AGENT},
-            )
-            if response.status_code == 429 and attempt < _MAX_RETRIES - 1:
-                delay = float(response.headers.get("Retry-After", 1 << attempt))
-                await asyncio.sleep(delay)
-                continue
-            response.raise_for_status()
-            break
+        response = await client.post(
+            settings.OVERPASS_API_URL,
+            data={"data": _build_query(lat, lon, radius_m)},
+            headers={"User-Agent": _USER_AGENT},
+        )
+        response.raise_for_status()
         data = response.json()
     finally:
         if owns_client:

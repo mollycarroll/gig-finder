@@ -29,7 +29,6 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       # Never resolved in tests — the JWKS client is mocked in conftest.py.
       SUPABASE_URL: http://localhost:54321
-      ALLOWED_ORIGINS: http://localhost:5173
       OVERPASS_API_URL: https://overpass-api.de/api/interpreter
       NOMINATIM_URL: https://nominatim.openstreetmap.org
       CACHE_REFRESH_DAYS: "30"

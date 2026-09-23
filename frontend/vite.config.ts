@@ -4,7 +4,6 @@ import { defineConfig } from 'vitest/config'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: process.env.GITHUB_PAGES ? '/gig-finder/' : '/',
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {

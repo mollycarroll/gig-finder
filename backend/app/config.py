@@ -10,9 +10,6 @@ class Settings(BaseSettings):
     # JWKS endpoint for JWT verification (see app/auth.py).
     SUPABASE_URL: str
 
-    # Comma-separated list of origins allowed to call this API (CORS).
-    ALLOWED_ORIGINS: str = "http://localhost:5173"
-
     OVERPASS_API_URL: str = "https://overpass-api.de/api/interpreter"
     NOMINATIM_URL: str = "https://nominatim.openstreetmap.org"
 
