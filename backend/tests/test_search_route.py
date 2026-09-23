@@ -1,4 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
+import httpx
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from app.models import Area
 
 from app.models import ScrapeStatus
 from app.services.overpass import OverpassVenue
@@ -136,3 +142,96 @@ def test_geocode_route(client: TestClient, monkeypatch):
     assert response.json() == [
         {"place_id": 1, "display_name": "Asheville, NC, USA", "lat": 35.6, "lon": -82.55}
     ]
+
+
+def _osm_venue(osm_id, website=None, phone=None):
+    return OverpassVenue(
+        osm_id=osm_id,
+        osm_type="node",
+        name=f"Venue {osm_id}",
+        address="",
+        lat=35.6,
+        lon=-82.55,
+        website_url=website,
+        osm_phone=phone,
+        osm_tags={"amenity": "bar"},
+    )
+
+
+def _mock_overpass_failure(monkeypatch):
+    async def fail(lat, lon, radius_m, client=None):
+        raise httpx.ConnectError("overpass unreachable")
+
+    monkeypatch.setattr("app.routers.search.overpass.find_venues", fail)
+
+
+def test_large_search_is_capped_and_prioritized(client: TestClient, monkeypatch):
+    # 14 venues with no contact hints plus one with a website; the default
+    # 10km radius counts as large, so only 10 venues survive and the
+    # website-carrying one must be among them.
+    venues = [_osm_venue(i) for i in range(1, 15)] + [
+        _osm_venue(99, website="https://best.example")
+    ]
+    _mock_overpass(monkeypatch, venues)
+    calls = _mock_scraper(
+        monkeypatch, [ScrapeResult(scrape_status=ScrapeStatus.no_website)] * 10
+    )
+
+    body = {**SEARCH_BODY, "lat": 36.0001, "display_name": "Big Town"}
+    response = client.post("/api/search", json=body)
+
+    assert response.status_code == 200
+    returned = response.json()["venues"]
+    assert len(returned) == 10
+    assert "Venue 99" in [v["name"] for v in returned]
+    assert len(calls[0]) == 10  # only the capped list was scraped
+
+
+def test_small_search_is_not_capped(client: TestClient, monkeypatch):
+    venues = [_osm_venue(i) for i in range(1, 15)]
+    _mock_overpass(monkeypatch, venues)
+    _mock_scraper(
+        monkeypatch, [ScrapeResult(scrape_status=ScrapeStatus.no_website)] * 14
+    )
+
+    body = {**SEARCH_BODY, "lat": 36.0002, "display_name": "Small Town", "radius_m": 3000}
+    response = client.post("/api/search", json=body)
+
+    assert response.status_code == 200
+    assert len(response.json()["venues"]) == 14
+
+
+def test_overpass_failure_serves_cached_results(
+    client: TestClient, db_session, monkeypatch
+):
+    body = {**SEARCH_BODY, "lat": 36.5, "display_name": "Fallback Town"}
+    _mock_overpass(monkeypatch, [_osm_venue(1, website="https://a.example")])
+    _mock_scraper(
+        monkeypatch,
+        [ScrapeResult(scrape_status=ScrapeStatus.success, email="x@a.example")],
+    )
+    assert client.post("/api/search", json=body).status_code == 200
+
+    # Age the cache so the next search re-queries Overpass, then break Overpass.
+    area = db_session.execute(
+        select(Area).where(Area.display_name == "Fallback Town")
+    ).scalar_one()
+    area.last_scraped_at = datetime.now(timezone.utc) - timedelta(days=999)
+    db_session.commit()
+    _mock_overpass_failure(monkeypatch)
+
+    response = client.post("/api/search", json=body)
+
+    assert response.status_code == 200
+    returned = response.json()["venues"]
+    assert len(returned) == 1
+    assert returned[0]["contact"]["email"] == "x@a.example"
+
+
+def test_overpass_failure_with_no_cache_is_502(client: TestClient, monkeypatch):
+    _mock_overpass_failure(monkeypatch)
+
+    body = {**SEARCH_BODY, "lat": 36.6, "display_name": "No Cache Town"}
+    response = client.post("/api/search", json=body)
+
+    assert response.status_code == 502

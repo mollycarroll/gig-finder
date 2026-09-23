@@ -5,7 +5,11 @@ import httpx
 
 from app.config import settings
 
-_TIMEOUT = httpx.Timeout(25.0)
+# Large-radius queries routinely need more than 25s on the public mirrors.
+_TIMEOUT = httpx.Timeout(60.0)
+# Public Overpass mirrors answer 429 when rate limiting and 502/503/504 when
+# overloaded; both are worth a short backoff-and-retry.
+_RETRYABLE_STATUSES = {429, 502, 503, 504}
 _USER_AGENT = "gig-finder/1.0 (local dev; https://github.com/)"
 _MAX_RETRIES = 3
 
@@ -32,7 +36,7 @@ def _build_query(lat: float, lon: float, radius_m: int) -> str:
     around = f"(around:{radius_m},{lat},{lon})"
     tag_filter = f'["amenity"~"^({amenity_filter})$"]'
     return (
-        "[out:json][timeout:25];"
+        "[out:json][timeout:50];"
         "("
         f"node{tag_filter}{around};"
         f"way{tag_filter}{around};"
@@ -83,7 +87,7 @@ async def find_venues(
                 data={"data": _build_query(lat, lon, radius_m)},
                 headers={"User-Agent": _USER_AGENT},
             )
-            if response.status_code == 429 and attempt < _MAX_RETRIES - 1:
+            if response.status_code in _RETRYABLE_STATUSES and attempt < _MAX_RETRIES - 1:
                 delay = float(response.headers.get("Retry-After", 1 << attempt))
                 await asyncio.sleep(delay)
                 continue
@@ -95,3 +99,18 @@ async def find_venues(
             await client.aclose()
 
     return [_parse_element(el) for el in data.get("elements", [])]
+
+
+def prioritize(venues: list[OverpassVenue], cap: int) -> list[OverpassVenue]:
+    """Trim a large venue list to the entries most likely to yield contact info.
+
+    Order: venues with a website first (scrapable for email/booking links),
+    then ones with a phone number in OSM, then ones with at least an address.
+    The sort is stable, so ties keep Overpass's original order. Used for
+    large-radius searches so the scrape pass stays bounded.
+    """
+
+    def sort_key(v: OverpassVenue) -> tuple[bool, bool, bool]:
+        return (v.website_url is None, v.osm_phone is None, not v.address)
+
+    return sorted(venues, key=sort_key)[:cap]

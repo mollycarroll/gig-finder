@@ -39,16 +39,31 @@ async def post_search(
     area = _find_or_create_area(db, body, radius_m)
 
     if cache.is_stale(area):
+        osm_venues: list[OverpassVenue] | None
         try:
             osm_venues = await overpass.find_venues(
                 float(area.lat), float(area.lon), area.radius_m
             )
         except httpx.HTTPError:
+            osm_venues = None
+
+        if osm_venues is not None:
+            if (
+                area.radius_m >= settings.LARGE_SEARCH_RADIUS_M
+                and len(osm_venues) > settings.LARGE_SEARCH_VENUE_CAP
+            ):
+                osm_venues = overpass.prioritize(
+                    osm_venues, settings.LARGE_SEARCH_VENUE_CAP
+                )
+            await _rescrape_area(db, area, osm_venues)
+        elif area.last_scraped_at is None:
+            # Overpass failed and there is nothing cached to fall back on.
             raise HTTPException(
                 status_code=502,
                 detail="Venue lookup failed — try a smaller area.",
             )
-        await _rescrape_area(db, area, osm_venues)
+        # Otherwise Overpass failed but the area has previously stored
+        # venues: fall through and serve them stale rather than erroring.
 
     venues = (
         db.execute(

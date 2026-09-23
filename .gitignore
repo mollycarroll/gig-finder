@@ -30,3 +30,4 @@ frontend/.env
 # Claude Code local overrides (personal, not shared)
 .claude/settings.local.json
 CLAUDE.local.md
+deployment.md

@@ -21,5 +21,12 @@ class Settings(BaseSettings):
     SCRAPE_CONCURRENCY: int = 10
     MAX_SEARCH_RADIUS_M: int = 25000
 
+    # Searches at or above LARGE_SEARCH_RADIUS_M are "large": their venue
+    # list is trimmed to LARGE_SEARCH_VENUE_CAP entries (prioritizing venues
+    # most likely to yield contact info) so the Overpass query plus the
+    # scrape pass finish before clients give up, instead of failing wholesale.
+    LARGE_SEARCH_RADIUS_M: int = 10000
+    LARGE_SEARCH_VENUE_CAP: int = 10
+
 
 settings = Settings()

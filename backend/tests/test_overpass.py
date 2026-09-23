@@ -3,7 +3,7 @@ from urllib.parse import parse_qs
 import httpx
 import pytest
 
-from app.services.overpass import find_venues
+from app.services.overpass import OverpassVenue, find_venues, prioritize
 
 
 @pytest.mark.asyncio
@@ -79,3 +79,51 @@ async def test_parses_node_and_way_elements():
     assert way_venue.lon == -82.56
     assert way_venue.website_url is None
     assert way_venue.osm_phone is None
+
+
+@pytest.mark.asyncio
+async def test_retries_when_server_is_busy():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return httpx.Response(504, headers={"Retry-After": "0"})
+        return httpx.Response(200, json={"elements": []})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    venues = await find_venues(35.5951, -82.5515, 10000, client=client)
+    assert venues == []
+    assert calls["n"] == 3
+
+
+def _venue(osm_id, website=None, phone=None, address=""):
+    return OverpassVenue(
+        osm_id=osm_id,
+        osm_type="node",
+        name=f"V{osm_id}",
+        address=address,
+        lat=0.0,
+        lon=0.0,
+        website_url=website,
+        osm_phone=phone,
+        osm_tags={},
+    )
+
+
+def test_prioritize_prefers_contactable_venues():
+    venues = [
+        _venue(1),
+        _venue(2, phone="555-0100"),
+        _venue(3, website="https://a.example"),
+        _venue(4, address="1 Main St"),
+        _venue(5, website="https://b.example", phone="555-0101"),
+    ]
+    top = prioritize(venues, 3)
+    # Website+phone first, then website-only, then phone-only.
+    assert [v.osm_id for v in top] == [5, 3, 2]
+
+
+def test_prioritize_is_stable_within_ties():
+    venues = [_venue(i, website=f"https://v{i}.example") for i in (7, 8, 9)]
+    assert [v.osm_id for v in prioritize(venues, 2)] == [7, 8]
