@@ -1,4 +1,5 @@
 import asyncio
+import math
 from dataclasses import dataclass
 
 import httpx
@@ -33,14 +34,21 @@ class OverpassVenue:
 
 def _build_query(lat: float, lon: float, radius_m: int) -> str:
     amenity_filter = "|".join(_LIVE_MUSIC_AMENITIES)
-    around = f"(around:{radius_m},{lat},{lon})"
     tag_filter = f'["amenity"~"^({amenity_filter})$"]'
+    # A global bbox uses Overpass's spatial index far more efficiently than
+    # (around:...), which routinely hits the server timeout at city scale
+    # (Chicago at 10km: bbox answered in ~17s where around: consistently
+    # 504ed). The square covers slightly more than the radius circle (its
+    # corners), which is acceptable for venue discovery near a point.
+    dlat = radius_m / 111_320
+    dlon = radius_m / (111_320 * max(math.cos(math.radians(lat)), 0.01))
+    bbox = f"{lat - dlat},{lon - dlon},{lat + dlat},{lon + dlon}"
     return (
-        "[out:json][timeout:50];"
+        f"[out:json][timeout:50][bbox:{bbox}];"
         "("
-        f"node{tag_filter}{around};"
-        f"way{tag_filter}{around};"
-        f"relation{tag_filter}{around};"
+        f"node{tag_filter};"
+        f"way{tag_filter};"
+        f"relation{tag_filter};"
         ");"
         "out center tags;"
     )

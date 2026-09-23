@@ -18,7 +18,14 @@ async def test_query_includes_live_music_amenities_and_radius():
     await find_venues(35.5951, -82.5515, 10000, client=client)
 
     query = parse_qs(captured["body"])["data"][0]
-    assert "around:10000,35.5951,-82.5515" in query
+    assert "[bbox:" in query
+    bbox = query.split("[bbox:")[1].split("]")[0]
+    south, west, north, east = map(float, bbox.split(","))
+    assert south < 35.5951 < north
+    assert west < -82.5515 < east
+    # The box spans roughly the 10km radius in each direction.
+    assert 0.088 < (north - south) / 2 < 0.092
+    assert 0.107 < (east - west) / 2 < 0.113
     for amenity in ("bar", "pub", "nightclub", "music_venue"):
         assert amenity in query
 
